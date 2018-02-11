@@ -6,6 +6,50 @@ import { promisify } from 'util';
 
 var Parser = require("jison").Parser;
 
+function saveRegion() {
+    let merge = Object.assign({}, region, group, global);
+    regions.push(merge);
+    region = {};
+}
+
+let global: any = {};
+let group: any = {};
+let region: any = {};
+
+let regions: any[] = [];        
+function setProp(name: string, value: number | string | boolean) {
+    //console.log(`PROPERTY:${name}:${value}`);
+
+    if (region) {
+        region[name] = value;
+    }
+    else if (group) {
+        group[name] = value;
+    }
+    else if (global) {
+        global[name] = value;
+    }
+}
+
+function setHeader(name: string) {
+    //console.log(`HEADER:${name}`);
+    if (name === '<global>')
+    {
+        saveRegion();
+        global = {};
+        group = {};
+    }    
+    else if (name === '<group>')
+    {
+        saveRegion();
+        group = {};
+    }
+    else if (name === '<region>')
+    {
+        saveRegion();
+    }
+}
+
 
 const grammar = {
     "lex": {
@@ -21,89 +65,50 @@ const grammar = {
             ["\\s+", "/* skip whitespace */"],
             ["\/\/.*\\n", "return 'COMMENT';"],
             ["{int}{frac}?\\b", "return 'NUMBER';"],
-            ["\\<{name}>", "return 'HEADER'"],
+            ["<{name}>", "return 'HEADER'"],
             ["{name}=", "return 'PROPERTY'"],
             ["true\\b", "return 'TRUE'"],
             ["false\\b", "return 'FALSE'"],
             ["[^<>:\"\/\\\\|?*]+.wav", "return 'FILENAME';"],
             ["[^<>:\"\/|?*]*\\n", "return 'PATH';"],
+            ["$", "return 'EOF';"],
         ]
     },
 
-    "operators": [
-        ["left", ":"]
-    ],
+    // "operators": [
+    //     ["left", ":"]
+    // ],
 
     "bnf": {
-        "SFZ": [
-            "SFZComment",
-            "SFZHeader",
-            "SFZPropertyList",
-            "SFZ SFZComment",
-            "SFZ SFZHeader",
-            "SFZ SFZPropertyList"
+        "Content":[
+            ["SFZExpressions EOF","return $1;"]],
+        "SFZExpressions": [
+            ["SFZExpressions SFZExpression", "console.log(`exps:push ${JSON.stringify($2)}`); $$ = $1.concat($2)"],
+            ["SFZExpression", "console.log('exps:new'); $$ = [$1]"]
         ],
-        "SFZComment": ["COMMENT"],
-        "SFZPath": ["PATH"],
-        "SFZNumber": ["NUMBER"],
-        "SFZFilename": ["FILENAME"],
-        "SFZBooleanLiteral": ["TRUE", "FALSE"],
+        "SFZExpression": [
+            ["SFZComment", "console.log('exp:comment'); $$ = $1"],
+            ["SFZHeader", "console.log('exp:header');$$ = $1"],
+            ["SFZProperty", "console.log('exp:prop');$$ = $1"]
+        ],
+        "SFZComment": [["COMMENT", "console.log('comment'); $$ = yytext"]],
+        "SFZPath": [["PATH", "$$ = yytext"]],
+        "SFZNumber": [["NUMBER", "$$ = $1"]],
+        "SFZFilename": [["FILENAME", "$$ = yytext"]],
         "SFZValue": [
-            "SFZBooleanLiteral",
-            "SFZPath",
-            "SFZNumber",
-            "SFZFilename"],
+            ["SFZPath","$$ = $1"],
+            ["SFZNumber","console.log(`num:${$1}`); $$ = $1"],
+            ["SFZFilename","$$ = $1"]],
         //"SFZProperty": [["PROPERTY SFZValue", "setProp($1.substring(0, $1.length - 1),$2)"]],
-        "SFZProperty": [["PROPERTY SFZValue", "yyYext = [$2]"]],
-        "SFZPropertyList": [
-            "SFZProperty",
-            "SFZPropertyList SFZProperty"],
-        "SFZHeader": [["HEADER", "setHeader($1)"]]
+        "SFZProperty": [["PROPERTY SFZValue", "console.log(`pro:${$1}${$2}`); $$ = {prop:$1, value:$2}"]],
+        //"SFZProperty": ["PROPERTY SFZValue"],
+        // "SFZPropertyList": [
+        //     ["SFZProperty","return [$1]"],
+        //     ["SFZPropertyList SFZProperty","return $1.concat($2)"]],
+        "SFZHeader": [["HEADER", "console.log(`header:${$1}`); $$ = $1"]]
     },
     actionInclude: function () {
-        function saveRegion() {
-            let merge = Object.assign({}, region, group, global);
-            regions.push(merge);
-            region = {};
-        }
         
-        let global: any = {};
-        let group: any = {};
-        let region: any = {};
-        
-        let regions: any[] = [];        
-        function setProp(name: string, value: number | string | boolean) {
-            //console.log(`PROPERTY:${name}:${value}`);
-        
-            if (region) {
-                region[name] = value;
-            }
-            else if (group) {
-                group[name] = value;
-            }
-            else if (global) {
-                global[name] = value;
-            }
-        }
-        
-        function setHeader(name: string) {
-            //console.log(`HEADER:${name}`);
-            if (name === '<global>')
-            {
-                saveRegion();
-                global = {};
-                group = {};
-            }    
-            else if (name === '<group>')
-            {
-                saveRegion();
-                group = {};
-            }
-            else if (name === '<region>')
-            {
-                saveRegion();
-            }
-        }
     }
 };
 
@@ -123,7 +128,7 @@ interface Import{
 }
 
 async function main() {
-    let file: string = 'D:\\Projets\\sfz\\Patch_Arena_sfz_Bowed_Vibraphone\\sfz Bowed Vibraphone.sfz';
+    let file: string = 'D:\\Projets\\sfz\\Patch_Arena_sfz_Bowed_Vibraphone\\sfz Bowed Vibraphone2.sfz.txt';
 
     try {
         let sfz = await promisify(fs.readFile)(file, "utf8");
@@ -131,7 +136,9 @@ async function main() {
         let parser = new Parser(grammar);
         let parseResult = parser.parse(sfz);
 
-        console.error(`Successfully Compiled`);
+        console.log(`${JSON.stringify(parseResult, null, 4)}`);
+        console.log(`Successfully Compiled`);
+        /*
 
         // Connect to WAAPI
         // Ensure you enabled WAAPI in Wwise's User Preferences
@@ -154,7 +161,7 @@ async function main() {
         // Import!
         var wwiseInfo = await connection.call(ak.wwise.core.audio.import_, importArgs);
 
-        await connection.disconnect();
+        await connection.disconnect();*/
 
     } catch (e) {
         console.error(e.message);
