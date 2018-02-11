@@ -63,7 +63,7 @@ const grammar = {
 
         "rules": [
             ["\\s+", "/* skip whitespace */"],
-            ["\/\/.*\\n", "return 'COMMENT';"],
+            ["\/\/.*\\n", "/* comment */"],
             ["{int}{frac}?\\b", "return 'NUMBER';"],
             ["<{name}>", "return 'HEADER'"],
             ["{name}=", "return 'PROPERTY'"],
@@ -75,37 +75,26 @@ const grammar = {
         ]
     },
 
-    // "operators": [
-    //     ["left", ":"]
-    // ],
-
     "bnf": {
         "Content":[
             ["SFZExpressions EOF","return $1;"]],
         "SFZExpressions": [
-            ["SFZExpressions SFZExpression", "console.log(`exps:push ${JSON.stringify($2)}`); $$ = $1.concat($2)"],
-            ["SFZExpression", "console.log('exps:new'); $$ = [$1]"]
+            ["SFZExpressions SFZExpression", "/*console.log(`exps:push ${JSON.stringify($2)}`);*/ $$ = $1.concat($2)"],
+            ["SFZExpression", "/*console.log('exps:new');*/ $$ = [$1]"]
         ],
         "SFZExpression": [
-            ["SFZComment", "console.log('exp:comment'); $$ = $1"],
-            ["SFZHeader", "console.log('exp:header');$$ = $1"],
-            ["SFZProperty", "console.log('exp:prop');$$ = $1"]
+            ["SFZHeader", "/*console.log('exp:header');*/ $$ = $1"],
+            ["SFZProperty", "/*console.log('exp:prop');*/ $$ = $1"]
         ],
-        "SFZComment": [["COMMENT", "console.log('comment'); $$ = yytext"]],
         "SFZPath": [["PATH", "$$ = yytext"]],
         "SFZNumber": [["NUMBER", "$$ = $1"]],
         "SFZFilename": [["FILENAME", "$$ = yytext"]],
         "SFZValue": [
             ["SFZPath","$$ = $1"],
-            ["SFZNumber","console.log(`num:${$1}`); $$ = $1"],
+            ["SFZNumber","/*console.log(`num:${$1}`);*/ $$ = $1"],
             ["SFZFilename","$$ = $1"]],
-        //"SFZProperty": [["PROPERTY SFZValue", "setProp($1.substring(0, $1.length - 1),$2)"]],
-        "SFZProperty": [["PROPERTY SFZValue", "console.log(`pro:${$1}${$2}`); $$ = {prop:$1, value:$2}"]],
-        //"SFZProperty": ["PROPERTY SFZValue"],
-        // "SFZPropertyList": [
-        //     ["SFZProperty","return [$1]"],
-        //     ["SFZPropertyList SFZProperty","return $1.concat($2)"]],
-        "SFZHeader": [["HEADER", "console.log(`header:${$1}`); $$ = $1"]]
+        "SFZProperty": [["PROPERTY SFZValue", "/*console.log(`pro:${$1}${$2}`);*/ $$ = {prop:$1.substring(0, $1.length - 1), value:$2}"]],
+        "SFZHeader": [["HEADER", "/*console.log(`header:${$1}`);*/ $$ = $1"]]
     },
     actionInclude: function () {
         
@@ -128,7 +117,7 @@ interface Import{
 }
 
 async function main() {
-    let file: string = 'D:\\Projets\\sfz\\Patch_Arena_sfz_Bowed_Vibraphone\\sfz Bowed Vibraphone2.sfz.txt';
+    let file: string = 'D:\\Projets\\sfz\\Patch_Arena_sfz_Bowed_Vibraphone\\sfz Bowed Vibraphone.sfz';
 
     try {
         let sfz = await promisify(fs.readFile)(file, "utf8");
