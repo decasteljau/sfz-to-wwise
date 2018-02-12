@@ -18,7 +18,7 @@ const grammar = {
 
         "rules": [
             ["\\s+", "/* skip whitespace */"],
-            ["\/\/.*\\n", "/* comment */"],
+            ["\/\/.*\\r?\\n", "/* comment */"],
             ["{int}{frac}?\\b", "return 'NUMBER';"],
             ["<{name}>", "return 'HEADER'"],
             ["{name}=", "return 'PROPERTY'"],
@@ -108,6 +108,7 @@ function toImport(region: Region, basename:string, basedir:string): Import {
     };
 
     imported['@EnableMidiNoteTracking'] = true;
+    imported['@OverrideMidiNoteTracking'] = true;    
 
     if (region.key) {
         imported['@MidiTrackingRootNote'] = region.key;
