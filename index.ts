@@ -74,6 +74,8 @@ interface Region{
     volume?: number;
     amp_random?: number; // Randomizier
 
+    pitch_keycenter?: number; // rookkey, 60=C4
+    pitch_keytrack?: number; // 0=no pitch tracking, 100=normal tracking
     key?: number;
     lokey?: number;
     hikey?: number;
@@ -89,8 +91,6 @@ interface Region{
 
     transpose?: number;  // note transposition
     tune?: number;   // Pitch ajustment in cents
-    pitch_keycenter?: number; // rookkey, 60=C4
-    pitch_keytrack?: number; // 0=no pitch tracking, 100=normal tracking
 }
 
 let control:any = null;
@@ -102,11 +102,41 @@ let regions: Region[] = [];
 
 function toImport(region: Region, basename:string, basedir:string): Import {
     let subDir = (control && control.default_path) ? control.default_path : '';
-    let imported: Import = {
+    let imported: any = {
         audioFile: path.join(basedir, subDir, region.sample),
         objectPath: path.join('\\Actor-Mixer Hierarchy\\Default Work Unit', '<Blend Container>'+basename, '<Sound SFX>' + path.basename(region.sample, '.wav'))
     };
 
+    imported['@EnableMidiNoteTracking'] = true;
+
+    if (region.key) {
+        imported['@MidiTrackingRootNote'] = region.key;
+    }
+    if (region.lokey) {
+        imported['@MidiKeyFilterMin'] = region.lokey;
+    }
+    if (region.hikey) {
+        imported['@MidiKeyFilterMax'] = region.hikey;
+    }
+    if (region.pitch_keycenter) {
+        imported['@MidiTrackingRootNote'] = region.pitch_keycenter;
+    }
+    if (region.lovel) {
+        imported['@MidiVelocityFilterMin'] = region.lovel;
+    }
+    if (region.hivel) {
+        imported['@MidiVelocityFilterMax'] = region.hivel;
+    }
+    if (region.transpose) {
+        imported['@MidiTransposition'] = region.transpose;
+    }
+    if (region.tune) {
+        imported['@Pitch'] = region.tune;
+    }    
+    if (region.volume) {
+        imported['@Volume'] = region.volume;
+    }
+    
     console.log(JSON.stringify(imported, null, 4));
     return imported;
 }
@@ -180,7 +210,7 @@ function processSFZ(sfz: (string|SFZProp)[]) {
 }
 
 async function main() {
-    let file: string = 'D:\\Projets\\sfz\\Patch_Arena_sfz_Bowed_Vibraphone\\sfz Bowed Vibraphone_simple.sfz.txt';
+    let file: string = 'D:\\Projets\\sfz\\Instruments\\CK-10 Piano\\Casio Piano.sfz';
 
     try {
         let sfz = await promisify(fs.readFile)(file, "utf8");
